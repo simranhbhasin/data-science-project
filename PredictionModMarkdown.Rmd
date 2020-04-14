@@ -1,0 +1,236 @@
+---
+title: "Real Estate Prediction Model"
+author: "Simranh Kaur Bhasin"
+date: "11/04/2020"
+output: html_document
+---
+
+The following program demonstrates the implementation of a Linear Regression Model on a real estate dataset. It includes the date of purchase, house age, location, distance to nearest MRT station, and house price of unit area. The model is applied in an attempt to estimate and further predict the price per unit area of the property based on attributes that show maximum correlation with it.
+
+We begin by reading the data.
+
+
+```{r}
+
+library("caret")
+library("ggplot2")
+library("GGally")
+
+setwd("/home/simranh/Desktop/DataSc")
+mydata=read.csv(file="real_estate.csv", header=TRUE)
+
+rs_data=data.frame(mydata)
+head(rs_data)
+any(is.na(rs_data))
+any(is.character(rs_data))
+summary(rs_data)
+```
+It can be seen that our data is not categorical (it is thus numerical) and doesn't contain any missing values or inconsistencies.
+```{r echo=FALSE}
+Latitd=(rs_data$latitude)
+HousePrice=(rs_data$house_price_of_unit_area)
+Longtd=(rs_data$longitude)
+no.conv.stores=(rs_data$number_of_convenience_stores)
+HouseAge=(rs_data$house_age)
+```
+
+Now,the ggpairs() function from the GGally package is used to create a plot matrix to see how the predictor and response variables relate to one another and do some exploratory data visualization.This will enable us to decide if a prediction model can be built or not.
+
+
+```{r}
+
+ggpairs(data=rs_data, columns = 3:8, title="Real Estate Data")
+
+```
+
+
+
+It can be seen that some attributes are related to the Price of the property and can be used to predict it.The closer the value of correlation is to 1 the stronger the relationship between the attributes. Thus to predict the cost of the property we will be using the top four attributes that exhibit maximum correlation with it. They are "No. of convenience stores", "Latitude", "Longitude" and "House Age". So we will be applying a multiple regression model.
+
+First let us do some exploratory data analysis for these four attributes by plotting histograms to judge the data distribution.To visualize the median of the observations we will be plotting the line for their respective medians as well. 
+
+```{r echo=FALSE}
+med.Lat=median(Latitd)
+med.Long=median(Longtd)
+med.conv=median(no.conv.stores)
+med.age=median(HouseAge)
+
+```
+
+```{r}
+
+hist(Latitd, main="Distribution of observations", xlab="Latitude", col="aquamarine3", border="white")
+abline(v=med.Lat, col="red", lwd=2)
+hist(Longtd, main="Distribution of observations", xlab="Longitude", col="coral1", border="white")
+abline(v=med.Long, col="blue", lwd=2)
+hist(no.conv.stores, main="Distribution of observations", xlab="No. of stores", col="cornflowerblue", border="white")
+abline(v=med.conv, col="red", lwd=2)
+hist(HouseAge, main="Distribution of observations", xlab="Age of house", col="darkolivegreen3", border="white")
+abline(v=med.age, col="blue", lwd=2)
+```
+
+
+Now to fit our linear model to the scatterplot of the predictor variables, ggplot() will be used.
+
+```{r echo=FALSE}
+ggplot(data = rs_data, aes(x = Longtd , y = HousePrice)) +
+  geom_point() +
+  stat_smooth(method = "lm", col = "dodgerblue3") +
+  theme(panel.background = element_rect(fill = "white"),
+        axis.line.x=element_line(),
+        axis.line.y=element_line()) +
+  ggtitle("Linear Model Fitted to Data")
+
+ggplot(data = rs_data, aes(x = no.conv.stores, y = HousePrice)) +
+  geom_point() +
+  stat_smooth(method = "lm", col = "deeppink") +
+  theme(panel.background = element_rect(fill = "white"),
+        axis.line.x=element_line(),
+        axis.line.y=element_line()) +
+  ggtitle("Linear Model Fitted to Data")
+
+ggplot(data = rs_data, aes(x = Latitd, y = HousePrice)) +
+  geom_point() +
+  stat_smooth(method = "lm", col = "darkviolet") +
+  theme(panel.background = element_rect(fill = "white"),
+        axis.line.x=element_line(),
+        axis.line.y=element_line()) +
+  ggtitle("Linear Model Fitted to Data")
+
+ggplot(data = rs_data, aes(x = HouseAge, y = HousePrice)) +
+  geom_point() +
+  stat_smooth(method = "lm", col = "darkorange1") +
+  theme(panel.background = element_rect(fill = "white"),
+        axis.line.x=element_line(),
+        axis.line.y=element_line()) +
+  ggtitle("Linear Model Fitted to Data")
+
+
+```
+
+
+
+The plots show that a very apparent linear relationship doesn't exist between the predictor and response variables and thus we will require polynomial regression in order to fit our model more accurately to our data while also avoiding overfitting.
+
+Further, the dataset is split into 2 sets, traning set that includes 70% of the original data and testing set that contains the remaining 30%. The training set is used to train the model and the testing set will help in cross-validating the model. 
+
+
+```{r}
+
+trainIndex=createDataPartition(rs_data$No, p=0.7,list=FALSE)
+training=rs_data[trainIndex,]
+testing=rs_data[-trainIndex,]
+
+```
+
+Thus, now the training set can be modelled as:- 
+
+
+```{r}
+
+linearMod=lm(HousePrice ~ I(Longtd^2) +  I(Latitd^3) + I(no.conv.stores^5) + HouseAge, data=training)
+
+```
+
+
+
+The attributes have been alotted specific degrees so as to fit the model more accurately to the training data.
+
+
+The plots depict similarity between the predicted values and the original ones.
+
+
+
+```{r echo=FALSE}
+plot( Longtd,HousePrice, main='Linear regression',col="deepskyblue4",pch=19)
+lines(smooth.spline(Longtd,predict(linearMod)), col='red', lwd='5')    #to add the regression line to the plot
+
+plot(no.conv.stores,HousePrice, main='Linear regression',col='deepskyblue4',pch=19)
+lines(smooth.spline(no.conv.stores,predict(linearMod)), col='green', lwd='5')
+
+plot(Latitd,HousePrice, main='Linear regression',col='deepskyblue4',pch=19)
+lines(smooth.spline(Latitd,predict(linearMod)), col='coral', lwd='5')   
+
+plot(HouseAge,HousePrice, main='Linear regression',col='deepskyblue4',pch=19)
+lines(smooth.spline(HouseAge,predict(linearMod)), col='darkgoldenrod1', lwd='5')
+```
+
+
+
+Now the linear model is built and the summary statistics will demonstrate the statistical significance of the model.
+
+
+
+```{r}
+
+summary(linearMod)
+
+```
+
+
+
+The model's p-Value and the p-Value of individual predictor variables  are very important because, we can consider a linear model to be statistically significant only when both these p-Values are less than the pre-determined statistical significance level, which is ideally 0.05. This is visually interpreted by the significance stars.
+Since all the variables that have been considered have three stars beside them, it can be said that they are all significant.
+
+
+
+
+The summary of the residuals indicates how well our model fits to our data. Generally, it is required that the residuals be normally distributed around zero. This can be visualized through the histogram made using ggplot2. The histogram below exhibits a good distribution of residuals around zero.
+
+
+
+```{r}
+
+ggplot(data=rs_data,aes(linearMod$residuals))+
+geom_histogram(binwidth=3,color="white", fill="hotpink")+
+theme(panel.background = element_rect(fill = "white"),
+axis.line.x=element_line(),
+axis.line.y=element_line()) +
+ggtitle("Histogram for Model Residuals")
+
+```
+
+
+
+Further the model thus built will be utilized to predict the dependent variable on the test data.
+
+
+
+```{r}
+
+pred=predict(linearMod,testing)
+head(pred)
+
+```
+
+
+This way, the model will give predicted values for 30% of the original data that was in the testing dataframe.
+
+
+
+Now the accuracy measures (like min_max accuracy) and error rates (MAPE or MSE) will be calculated.This will indicate the prediction accuracy of the model.
+
+
+To calculate the accuracy, a dataframe is made that consists of the actual and the predicted values of the House price per unit area. 
+
+The dataframe is further used to estimate the Mean Absolute Error.
+
+
+```{r}
+
+actual_pred=data.frame(cbind(actuals=testing$house_price_of_unit_area,predicteds=pred))
+
+min_max_accuracy= mean(apply(actual_pred,1,min)/apply(actual_pred,1,max))
+min_max_accuracy
+
+MAPE=mean(abs((actual_pred$predicteds - actual_pred$actuals)) / actual_pred$actuals)
+MAPE    #mean absolute percentage error
+
+```
+
+
+
+It can be seen that this model when implemented for the real estate dataset gives a min-max accuracy in the range 70-73% with a probability of error in the range 0.40 - 0.44. (The exact value differs due to change in the predicted values each time they are generated).
+
+
+
